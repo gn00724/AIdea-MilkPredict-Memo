@@ -27,9 +27,12 @@ sns.countplot(data["Survived"])
 #%%
 sns.countplot(data["Pclass"], hue=data["Survived"])
 #%%
+sns.countplot(data["Sex"])
+#%%
 sns.countplot(data["Sex"], hue=data["Survived"])
 #%%
 sns.countplot(data["Embarked"], hue=data["Survived"])
+
 #%%
 g = sns.FacetGrid(data, col="Survived")
 g.map(sns.distplot, "Age", kde=False)
@@ -42,6 +45,7 @@ g.map(sns.distplot, "Parch", kde=False)
 #%%
 g = sns.FacetGrid(data, col="Survived")
 g.map(sns.distplot, "SibSp", kde=False)
+
 #%%
 data["Family_Size"] = data["Parch"] + data["SibSp"]
 g = sns.FacetGrid(data, col="Survived")
