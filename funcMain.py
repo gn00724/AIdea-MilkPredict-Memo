@@ -13,29 +13,41 @@ import seaborn as sns
 train = pd.read_csv("./rawData/train.csv")
 test = pd.read_csv("./rawData/test.csv")
 submit = pd.read_csv("./rawData/gender_submission.csv")
-
+#%%
+#1.先觀察資料及有沒有缺損
+#發現Total資料樹不一樣，需要補缺損內容
 train.info()
 test.info()
+#%%
+#2.觀察資料的大概數值分佈
 train.describe()
 test.describe()
 
-data = train.append(test)
-data.reset_index(inplace=True, drop=True)
-
 #%%
+#3.最重要的是找出有用的特徵值
 sns.countplot(data["Survived"])
 #%%
 sns.countplot(data["Pclass"], hue=data["Survived"])
 #%%
-sns.countplot(data["Sex"])
+#嘗試分析客艙死亡率與平均死亡率
+SurvivedMean = data["Survived"].mean()
+fig, ax = plt.subplots(figsize = (5,4))
+Pclass_Percent = pd.DataFrame(train.groupby(data['Pclass'])["Survived"].mean())
+Pclass_Percent.plot.bar(ax=ax)
+ax.axhline(SurvivedMean,linestyle='dashed', c='black',alpha = .3)
 #%%
-sns.countplot(data["Sex"], hue=data["Survived"])
-#%%
-sns.countplot(data["Embarked"], hue=data["Survived"])
+#嘗試分析男女性與平均死亡率
+fig, ax = plt.subplots(figsize = (5,4))
+Pclass_Percent = pd.DataFrame(train.groupby(data['Sex'])["Survived"].mean())
+Pclass_Percent.plot.bar(ax=ax)
+ax.axhline(SurvivedMean,linestyle='dashed', c='black',alpha = .3)
 
 #%%
+#嘗試分析年齡對於生存率的關鍵轉折點，作為二分法特徵
+fig, ax = plt.subplots(figsize = (5,4))
 g = sns.FacetGrid(data, col="Survived")
-g.map(sns.distplot, "Age", kde=False)
+g.map(sns.distplot, "Age", kde=True)
+g.map(sns.distplot, "Age", kde=True, ax=ax)
 #%%
 g = sns.FacetGrid(data, col="Survived")
 g.map(sns.distplot, "Fare", kde=False)
@@ -61,6 +73,7 @@ data["Name"].str.split(", ", expand=True).head(3)
 data["Title1"].unique()
 #%%
 pd.crosstab(data["Title1"],data["Sex"]).T.style.background_gradient(cmap="summer_r")
+#%%
 pd.crosstab(data["Title1"],data["Survived"]).T.style.background_gradient(cmap="summer_r")
 
 #%%
@@ -113,7 +126,7 @@ dataTrain.columns
 dataTrain = dataTrain[['Survived', 'Age', 'Embarked', 'Fare',  'Pclass', 'Sex', 'Family_Size', 'Title2','Ticket_info','Cabin']]
 dataTest = dataTest[['Age', 'Embarked', 'Fare', 'Pclass', 'Sex', 'Family_Size', 'Title2','Ticket_info','Cabin']]
 dataTrain
-
+#%%
 from sklearn.ensemble import RandomForestClassifier
  
 rf = RandomForestClassifier(criterion='gini', 
