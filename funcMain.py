@@ -13,26 +13,69 @@ import seaborn as sns
 train = pd.read_csv("./rawData/train.csv")
 test = pd.read_csv("./rawData/test.csv")
 submit = pd.read_csv("./rawData/gender_submission.csv")
+data = train.append(test)
+
+df_report = pd.read_csv("./data/report.csv")
+df_birth = pd.read_csv("./data/birth.csv")
+
+X = df_report.drop(labels=["11"], axis=1)
+Y_raw = df_report["11"]
+Y = []
+X_raw
 #%%
-#1.先觀察資料及有沒有缺損
-#發現Total資料樹不一樣，需要補缺損內容
-train.info()
-test.info()
+for x in Y_raw:
+    try:
+        Y.append(float(x))
+    except:  
+        Y.append(0)
+
+Y = pd.Series(Y)
 #%%
-#2.觀察資料的大概數值分佈
-train.describe()
-test.describe()
+Y_raw.describe()
+#%%
+X["4"].describe()
+#%%
+X["3"].describe()
+
+
+
+#%%月份與平均乳量的關係 | 牧場關係很大
+#觀察
+d_fram = pd.Series(df_report.groupby(df_report["4"])["11"].mean())
+d_fram.describe()
+#%%
+#只觀察牧場，看月份有無關係 | 好像有一點
+d_framA = pd.DataFrame(df_report)
+d_framA = d_framA[d_framA.loc[:,"4"] == 1]
+d_framAbyMonthsMean = pd.Series(d_framA.groupby(d_framA["3"])["11"].mean())
+#%%
+d_framAbyMonthsMean.describe()
+sns.relplot(data=d_framAbyMonthsMean)
 
 #%%
-#3.最重要的是找出有用的特徵值
-sns.countplot(data["Survived"])
+d_framAbyBirTimesMean = pd.Series(d_framA.groupby(d_framA["9"])["11"].mean())
+sns.relplot(data=d_framAbyBirTimesMean)
+
 #%%
-sns.countplot(data["Pclass"], hue=data["Survived"])
+b1 = ["4","3"]
+b1_Model = RandomForestClassifier(random_state=2, n_estimators=250, min_samples_split=20, oob_score=True)
+b1_Model.fit(X[b1],Y)
+
+
+
+
+
+#%%
+"""
+
+#%%
+sns.countplot(df_report["11"], hue=df_report["3"])
 #%%
 #嘗試分析客艙死亡率與平均死亡率
 SurvivedMean = data["Survived"].mean()
 fig, ax = plt.subplots(figsize = (5,4))
 Pclass_Percent = pd.DataFrame(train.groupby(data['Pclass'])["Survived"].mean())
+
 Pclass_Percent.plot.bar(ax=ax)
 ax.axhline(SurvivedMean,linestyle='dashed', c='black',alpha = .3)
 #%%
@@ -149,3 +192,4 @@ submit['Survived'] = submit['Survived'].astype(int)
 submit.to_csv('submit.csv', index= False)
 submit
 
+"""
