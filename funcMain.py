@@ -10,42 +10,31 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-train = pd.read_csv("./rawData/train.csv")
-test = pd.read_csv("./rawData/test.csv")
-submit = pd.read_csv("./rawData/gender_submission.csv")
-data = train.append(test)
+df_train = pd.read_csv("./data/train.csv", error_bad_lines = False)
+df_report = pd.read_csv("./data/report.csv", error_bad_lines = False)
+df_birth = pd.read_csv("./data/birth.csv", error_bad_lines = False)
+df_submit = pd.read_csv("./data/submission.csv", error_bad_lines = False)
 
-df_report = pd.read_csv("./data/report.csv")
-df_birth = pd.read_csv("./data/birth.csv")
-
-X = df_report.drop(labels=["11"], axis=1)
-Y_raw = df_report["11"]
-Y = []
-X_raw
 #%%
-for x in Y_raw:
-    try:
-        Y.append(float(x))
-    except:  
-        Y.append(0)
+X = df_train
+X_raw = df_report
+X["11"] = X["11"].dropna(axis=0)
+Y_raw = pd.DataFrame(df_train["11"])
 
-Y = pd.Series(Y)
+
 #%%
 Y_raw.describe()
 #%%
-X["4"].describe()
-#%%
-X["3"].describe()
-
-
+X["10"] = X["10"].fillna(0)
+X["10"].describe()
 
 #%%月份與平均乳量的關係 | 牧場關係很大
 #觀察
-d_fram = pd.Series(df_report.groupby(df_report["4"])["11"].mean())
+d_fram = pd.Series(df_train.groupby(df_train["4"])["11"].mean())
 d_fram.describe()
 #%%
 #只觀察牧場，看月份有無關係 | 好像有一點
-d_framA = pd.DataFrame(df_report)
+d_framA = pd.DataFrame(df_train)
 d_framA = d_framA[d_framA.loc[:,"4"] == 1]
 d_framAbyMonthsMean = pd.Series(d_framA.groupby(d_framA["3"])["11"].mean())
 #%%
@@ -53,17 +42,24 @@ d_framAbyMonthsMean.describe()
 sns.relplot(data=d_framAbyMonthsMean)
 
 #%%
-d_framAbyBirTimesMean = pd.Series(d_framA.groupby(d_framA["9"])["11"].mean())
+d_framAbyBirTimesMean = pd.Series(d_framA.groupby(d_framA["18"])["11"].mean())
 sns.relplot(data=d_framAbyBirTimesMean)
 
 #%%
-b1 = ["4","3"]
+b1 = ["18","4","3"]
 b1_Model = RandomForestClassifier(random_state=2, n_estimators=250, min_samples_split=20, oob_score=True)
-b1_Model.fit(X[b1],Y)
+b1_Model.fit(X[b1],Y_raw.astype('int'))
+#%%
+#print(b1_Model.oob_score_)
 
-
-
-
+#%%
+df_submit
+#%%
+b1_pred = b1_Model.predict(X_raw[b1])
+#%%
+submit2 = pd.DataFrame({"ID": X_raw["1"], "預測乳量":b1_pred.astype(int)})
+#%%
+submit2.to_csv("submit.csv", index=False)
 
 #%%
 """
