@@ -4,6 +4,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
+from datetime import datetime as dt
 
 import warnings
 import pandas as pd
@@ -11,17 +12,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-df_train = pd.read_csv("./data/train.csv", error_bad_lines = False)
-df_report = pd.read_csv("./data/report.csv", error_bad_lines = False)
-df_birth = pd.read_csv("./data/birth.csv", error_bad_lines = False)
-df_submit = pd.read_csv("./data/submission.csv", error_bad_lines = False)
+df_train = pd.read_csv("./乳牛/data/train.csv", error_bad_lines = False)
+df_report = pd.read_csv("./乳牛/data/report.csv", error_bad_lines = False)
+df_birth = pd.read_csv("./乳牛/data/birth.csv", error_bad_lines = False)
+df_submit = pd.read_csv("./乳牛/data/submission.csv", error_bad_lines = False)
 
 #%%
 X = df_train
 X_raw = df_report
 X["11"] = X["11"].dropna(axis=0)
 Y_raw = pd.DataFrame(df_train["11"])
-
 
 #%%
 Y_raw.describe()
@@ -78,6 +78,36 @@ d_framAbyBreedTimesMean = pd.Series(d_framA.groupby(d_framA["18"])["11"].mean())
 sns.relplot(data=d_framAbyBreedTimesMean)
 
 #%%
+df_train["12"] = pd.to_datetime(df_train["12"], format="%Y/%m/%d %H:%M")
+df_train["15"] = pd.to_datetime(df_train["15"], format="%Y/%m/%d %H:%M")
+df_train["DayAfterBreed"] = df_train["15"] - df_train["12"]
+
+tmpArray = []
+for x in df_train["DayAfterBreed"]:
+    tmpArray.append(x.days)
+
+df_train["DayAfterBreed"] = pd.Series(tmpArray)
+df_train["DayAfterBreed"].describe()
+#%%
+d_DayAfterBreed = pd.Series(df_train.groupby(df_train["DayAfterBreed"])["11"].mean())
+d_DayAfterBreed.describe()
+#%%
+sns.relplot(data=d_DayAfterBreed)
+#d_framAbyDayAfterBreed = pd.Series(d_framA.groupby(d_framA["12"])["11"].mean())
+#sns.relplot(data=d_framAbyDayAfterBreed)
+
+#%%
+TypeDayAfterBreed = pd.qcut(df_train["DayAfterBreed"],7)
+da = TypeDayAfterBreed.values.codes
+#%%
+df_train["DayAfterBreed"] = pd.Series(da).astype("int")
+df_train["DayAfterBreed"]
+#%%
+df = pd.Series(df_train.groupby(df_train["DayAfterBreed"])["11"].mean())
+sns.relplot(data=df)
+
+
+#%%
 #年齡資料後來的變異數太大
 d_framAYearsOld = pd.Series(d_framA.groupby(d_framA["14"])["11"].mean())
 d_framAYearsOld.describe()
@@ -103,7 +133,7 @@ df_train["BirthTimesType"] = df_train["9"].map(BirthTimesDict).astype("int")
 df_train["BirthTimesType"]
 
 #%%
-b1 = ["4","MonthCode","18","MilkDuraiton","BirthTimesType"]
+b1 = ["4","MonthCode","18","DayAfterBreed","BirthTimesType"]
 b1_Model = RandomForestClassifier(random_state=10, n_estimators=250, min_samples_split=20, oob_score=True)
 b1_Model.fit(X[b1],Y_raw.astype('int'))
 #%%
@@ -129,6 +159,19 @@ for m in X_raw["9"]:
         predBirthTimesDict[m] = 1
     else:
         predBirthTimesDict[m] = 0
+
+df_train["12"] = pd.to_datetime(df_train["12"], format="%Y/%m/%d %H:%M")
+df_train["15"] = pd.to_datetime(df_train["15"], format="%Y/%m/%d %H:%M")
+df_train["DayAfterBreed"] = df_train["15"] - df_train["12"]
+
+tmpArray = []
+for x in df_train["DayAfterBreed"]:
+    tmpArray.append(x.days)
+
+df_train["DayAfterBreed"] = pd.Series(tmpArray)
+
+
+
 #%%
 predBirthTimesDict
 #%%
@@ -145,6 +188,16 @@ b1_pred = b1_Model.predict(X_raw[b1])
 submit2 = pd.DataFrame({"ID": X_raw["1"], "預測乳量":b1_pred.astype(int)})
 #%%
 submit2.to_csv("submit.csv", index=False)
+
+
+
+
+
+
+
+
+
+
 
 #%%
 from sklearn.linear_model import LinearRegression
