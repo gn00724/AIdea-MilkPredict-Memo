@@ -3,6 +3,7 @@ from sklearn import preprocessing
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import LabelEncoder
 
 import warnings
 import pandas as pd
@@ -10,10 +11,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-df_train = pd.read_csv("./data/train.csv", error_bad_lines = False)
-df_report = pd.read_csv("./data/report.csv", error_bad_lines = False)
-df_birth = pd.read_csv("./data/birth.csv", error_bad_lines = False)
-df_submit = pd.read_csv("./data/submission.csv", error_bad_lines = False)
+df_train = pd.read_csv("./乳牛/data/train.csv", error_bad_lines = False)
+df_report = pd.read_csv("./乳牛/data/report.csv", error_bad_lines = False)
+df_birth = pd.read_csv("./乳牛/data/birth.csv", error_bad_lines = False)
+df_submit = pd.read_csv("./乳牛/data/submission.csv", error_bad_lines = False)
 
 #%%
 X = df_train
@@ -42,18 +43,104 @@ d_framAbyMonthsMean.describe()
 sns.relplot(data=d_framAbyMonthsMean)
 
 #%%
-d_framAbyBirTimesMean = pd.Series(d_framA.groupby(d_framA["18"])["11"].mean())
-sns.relplot(data=d_framAbyBirTimesMean)
+MonthTypeCodeDict = {}
+MonthType = pd.qcut(d_framAbyMonthsMean,3)
+
+for m in range(12):
+    MonthTypeCodeDict[m+1] = MonthType.array.codes[m]
 
 #%%
-b1 = ["18","4","3"]
+#觀察圖表，把月份切成三個單位，好像比較好用 | 4個預測分數會下降
+df_train["MonthCode"] = df_train["3"].map(MonthTypeCodeDict).astype("int")
+sns.relplot(data=pd.Series(d_framA.groupby(df_train["MonthCode"])["11"].mean()))
+
+#只觀察牧場，觀察泌乳時間分佈
+#%%
+d_framAbyMilkDuration = pd.Series(d_framA.groupby(d_framA["10"])["11"].mean())
+d_framAbyMilkDuration.describe()
+sns.relplot(data=d_framAbyMilkDuration)
+#%%
+d_MilkDuraiton = pd.qcut(d_framAbyMilkDuration,2)
+d_MilkDuraiton.array.categories[1]
+MilkDuraitonDict = {}
+
+for m in df_train["10"]:
+    if m in d_MilkDuraiton.array.categories[1]:
+        MilkDuraitonDict[m] = 1
+    else:
+        MilkDuraitonDict[m] = 0
+
+df_train["MilkDuraiton"] = df_train["10"].map(MilkDuraitonDict).astype("int")
+df_train["MilkDuraiton"]
+
+#%%
+d_framAbyBreedTimesMean = pd.Series(d_framA.groupby(d_framA["18"])["11"].mean())
+sns.relplot(data=d_framAbyBreedTimesMean)
+
+#%%
+#年齡資料後來的變異數太大
+d_framAYearsOld = pd.Series(d_framA.groupby(d_framA["14"])["11"].mean())
+d_framAYearsOld.describe()
+sns.relplot(data=d_framAYearsOld)
+
+#%%
+#胎次好像可以有明顯分區
+d_framABirthTimes = pd.Series(d_framA.groupby(d_framA["9"])["11"].mean())
+d_framABirthTimes.describe()
+sns.relplot(data=d_framABirthTimes)
+#%%
+d_BirthTimesType = pd.qcut(d_framABirthTimes,2)
+d_BirthTimesType.array.categories[1]
+BirthTimesDict = {}
+
+for m in df_train["9"]:
+    if m in d_BirthTimesType.array.categories[1]:
+        BirthTimesDict[m] = 1
+    else:
+        BirthTimesDict[m] = 0
+
+df_train["BirthTimesType"] = df_train["9"].map(BirthTimesDict).astype("int")
+df_train["BirthTimesType"]
+
+#%%
+b1 = ["4","MonthCode","18","MilkDuraiton","BirthTimesType"]
 b1_Model = RandomForestClassifier(random_state=2, n_estimators=250, min_samples_split=20, oob_score=True)
 b1_Model.fit(X[b1],Y_raw.astype('int'))
 #%%
-#print(b1_Model.oob_score_)
+print(b1_Model.oob_score_)
 
 #%%
-df_submit
+#把剛剛中途創建公式欄位的都加在預測的欄位中
+X_raw["MonthCode"] = X_raw["3"].map(MonthTypeCodeDict).astype("int")
+
+predBirthTimesDict = {}
+predMilkDuraitonDict = {}
+#%%
+for m in X_raw["10"]:
+    if m in d_MilkDuraiton.array.categories[1]:
+        predMilkDuraitonDict[m] = 1
+    else:
+        predMilkDuraitonDict[m] = 0
+
+for m in X_raw["9"]:
+    if m in d_BirthTimesType.array.categories[1]:
+        predBirthTimesDict[m] = 1
+    else:
+        predBirthTimesDict[m] = 0
+#%%
+predBirthTimesDict
+#%%
+predMilkDuraitonDict
+#%%
+X_raw["MilkDuraiton"] = X_raw["10"].map(predMilkDuraitonDict).astype("int")
+#%%
+X_raw["BirthTimesType"] = X_raw["9"].map(predBirthTimesDict).astype("int")
+
+
+
+
+
+
 #%%
 b1_pred = b1_Model.predict(X_raw[b1])
 #%%
