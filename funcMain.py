@@ -11,10 +11,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-df_train = pd.read_csv("./乳牛/data/train.csv", error_bad_lines = False)
-df_report = pd.read_csv("./乳牛/data/report.csv", error_bad_lines = False)
-df_birth = pd.read_csv("./乳牛/data/birth.csv", error_bad_lines = False)
-df_submit = pd.read_csv("./乳牛/data/submission.csv", error_bad_lines = False)
+df_train = pd.read_csv("./data/train.csv", error_bad_lines = False)
+df_report = pd.read_csv("./data/report.csv", error_bad_lines = False)
+df_birth = pd.read_csv("./data/birth.csv", error_bad_lines = False)
+df_submit = pd.read_csv("./data/submission.csv", error_bad_lines = False)
 
 #%%
 X = df_train
@@ -47,7 +47,7 @@ MonthTypeCodeDict = {}
 MonthType = pd.qcut(d_framAbyMonthsMean,3)
 
 for m in range(12):
-    MonthTypeCodeDict[m+1] = MonthType.array.codes[m]
+    MonthTypeCodeDict[m+1] = MonthType.values.codes[m]
 
 #%%
 #觀察圖表，把月份切成三個單位，好像比較好用 | 4個預測分數會下降
@@ -61,11 +61,11 @@ d_framAbyMilkDuration.describe()
 sns.relplot(data=d_framAbyMilkDuration)
 #%%
 d_MilkDuraiton = pd.qcut(d_framAbyMilkDuration,2)
-d_MilkDuraiton.array.categories[1]
+d_MilkDuraiton.values.categories[1]
 MilkDuraitonDict = {}
 
 for m in df_train["10"]:
-    if m in d_MilkDuraiton.array.categories[1]:
+    if m in d_MilkDuraiton.values.categories[1]:
         MilkDuraitonDict[m] = 1
     else:
         MilkDuraitonDict[m] = 0
@@ -90,11 +90,11 @@ d_framABirthTimes.describe()
 sns.relplot(data=d_framABirthTimes)
 #%%
 d_BirthTimesType = pd.qcut(d_framABirthTimes,2)
-d_BirthTimesType.array.categories[1]
+d_BirthTimesType.values.categories[1]
 BirthTimesDict = {}
 
 for m in df_train["9"]:
-    if m in d_BirthTimesType.array.categories[1]:
+    if m in d_BirthTimesType.values.categories[1]:
         BirthTimesDict[m] = 1
     else:
         BirthTimesDict[m] = 0
@@ -104,7 +104,7 @@ df_train["BirthTimesType"]
 
 #%%
 b1 = ["4","MonthCode","18","MilkDuraiton","BirthTimesType"]
-b1_Model = RandomForestClassifier(random_state=2, n_estimators=250, min_samples_split=20, oob_score=True)
+b1_Model = RandomForestClassifier(random_state=10, n_estimators=250, min_samples_split=20, oob_score=True)
 b1_Model.fit(X[b1],Y_raw.astype('int'))
 #%%
 print(b1_Model.oob_score_)
@@ -116,14 +116,16 @@ X_raw["MonthCode"] = X_raw["3"].map(MonthTypeCodeDict).astype("int")
 predBirthTimesDict = {}
 predMilkDuraitonDict = {}
 #%%
+X_raw["10"] = X_raw["10"].fillna(0)
+#%%
 for m in X_raw["10"]:
-    if m in d_MilkDuraiton.array.categories[1]:
+    if m in d_MilkDuraiton.values.categories[1]:
         predMilkDuraitonDict[m] = 1
     else:
         predMilkDuraitonDict[m] = 0
 
 for m in X_raw["9"]:
-    if m in d_BirthTimesType.array.categories[1]:
+    if m in d_BirthTimesType.values.categories[1]:
         predBirthTimesDict[m] = 1
     else:
         predBirthTimesDict[m] = 0
@@ -137,16 +139,36 @@ X_raw["MilkDuraiton"] = X_raw["10"].map(predMilkDuraitonDict).astype("int")
 X_raw["BirthTimesType"] = X_raw["9"].map(predBirthTimesDict).astype("int")
 
 
-
-
-
-
 #%%
 b1_pred = b1_Model.predict(X_raw[b1])
 #%%
 submit2 = pd.DataFrame({"ID": X_raw["1"], "預測乳量":b1_pred.astype(int)})
 #%%
 submit2.to_csv("submit.csv", index=False)
+
+#%%
+from sklearn.linear_model import LinearRegression
+regressor = LinearRegression()
+df_train['11'].describe()
+#%%
+X = df_train['3'].values.reshape(-1,1)
+Y = df_train['11'].values.reshape(-1,1)
+
+#%%
+regressor.fit(X, Y)
+#%%
+XR = df_report['3'].values.reshape(-1,1)
+YR = df_report['11'].values.reshape(-1,1)
+
+YR = YR.astype('int')
+YR
+#%%
+regressor.score(XR, YR)
+#%%
+b2_pred = regressor.predict(XR)
+#%%
+df = pd.DataFrame({'ID': df_report['1'],'Actual': YR.flatten(), 'Predicted': b2_pred.flatten()})
+df.to_csv("submit_line.csv", index=False)
 
 #%%
 """
