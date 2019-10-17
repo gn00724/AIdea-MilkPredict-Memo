@@ -38,14 +38,22 @@ d_fram.describe()
 d_framA = pd.DataFrame(df_train)
 d_framA = d_framA[d_framA.loc[:,"4"] == 1]
 d_framAbyMonthsMean = pd.Series(d_framA.groupby(d_framA["3"])["11"].mean())
-#%%
 d_framAbyMonthsMean.describe()
 sns.relplot(data=d_framAbyMonthsMean)
+#%%
+#把南部的牧場攪和一起 | 預測分數會下降
+tmpA = []
+for x in df_train["4"]:
+    code = x
+    if x != 1:
+        code = 2
+    tmpA.append(code)
+df_train["FramCode"] = pd.Series(tmpA)
 
 #%%
 MonthTypeCodeDict = {}
-MonthType = pd.qcut(d_framAbyMonthsMean,3)
-
+MonthType = pd.qcut(pd.Series(df_train.groupby(df_train["3"])["11"].mean()),5)
+sns.relplot(data=pd.Series(d_framA.groupby(df_train["3"])["11"].mean()))
 for m in range(12):
     MonthTypeCodeDict[m+1] = MonthType.values.codes[m]
 
@@ -53,6 +61,24 @@ for m in range(12):
 #觀察圖表，把月份切成三個單位，好像比較好用 | 4個預測分數會下降
 df_train["MonthCode"] = df_train["3"].map(MonthTypeCodeDict).astype("int")
 sns.relplot(data=pd.Series(d_framA.groupby(df_train["MonthCode"])["11"].mean()))
+
+#%%
+#年份和乳量的關係
+YearsFact = pd.Series(df_train.groupby(df_train["2"])["11"].mean())
+sns.relplot(data=YearsFact)
+
+#%%
+d_YearsType = pd.qcut(YearsFact,3)
+print(d_YearsType.values.codes)
+yearsTypeDict = {}
+
+for m in df_train["2"]:
+    yearsTypeDict[m] = d_YearsType.values.codes[m-2013]
+
+df_train["YearsType"] = df_train["2"].map(yearsTypeDict).astype("int")
+df_train["YearsType"].describe()
+
+
 
 #只觀察牧場，觀察泌乳時間分佈
 #%%
@@ -97,11 +123,13 @@ sns.relplot(data=d_DayAfterBreed)
 #sns.relplot(data=d_framAbyDayAfterBreed)
 
 #%%
-TypeDayAfterBreed = pd.qcut(df_train["DayAfterBreed"],7)
-da = TypeDayAfterBreed.values.codes
+TypeDayAfterBreed = pd.qcut(df_train["DayAfterBreed"],10)
+d_typedayAfterBreed = TypeDayAfterBreed.values.codes
+
+
 #%%
-df_train["DayAfterBreed"] = pd.Series(da).astype("int")
-df_train["DayAfterBreed"]
+df_train["DayAfterBreed"] = pd.Series(d_typedayAfterBreed).astype("int")
+df_train["DayAfterBreed"].describe()
 #%%
 df = pd.Series(df_train.groupby(df_train["DayAfterBreed"])["11"].mean())
 sns.relplot(data=df)
@@ -115,7 +143,7 @@ sns.relplot(data=d_framAYearsOld)
 
 #%%
 #胎次好像可以有明顯分區
-d_framABirthTimes = pd.Series(d_framA.groupby(d_framA["9"])["11"].mean())
+d_framABirthTimes = pd.Series(df_train.groupby(df_train["9"])["11"].mean())
 d_framABirthTimes.describe()
 sns.relplot(data=d_framABirthTimes)
 #%%
@@ -132,12 +160,17 @@ for m in df_train["9"]:
 df_train["BirthTimesType"] = df_train["9"].map(BirthTimesDict).astype("int")
 df_train["BirthTimesType"]
 
+sns.relplot(data=pd.Series(df_train.groupby(df_train["BirthTimesType"])["11"].mean()))
+
+
 #%%
-b1 = ["4","MonthCode","18","DayAfterBreed","BirthTimesType"]
+b1 = ["YearsType","4","MonthCode","DayAfterBreed"]
 b1_Model = RandomForestClassifier(random_state=10, n_estimators=250, min_samples_split=20, oob_score=True)
 b1_Model.fit(X[b1],Y_raw.astype('int'))
 #%%
 print(b1_Model.oob_score_)
+
+#---------Pred End
 
 #%%
 #把剛剛中途創建公式欄位的都加在預測的欄位中
@@ -145,6 +178,7 @@ X_raw["MonthCode"] = X_raw["3"].map(MonthTypeCodeDict).astype("int")
 
 predBirthTimesDict = {}
 predMilkDuraitonDict = {}
+predYersTypeDict = {}
 #%%
 X_raw["10"] = X_raw["10"].fillna(0)
 #%%
@@ -159,23 +193,29 @@ for m in X_raw["9"]:
         predBirthTimesDict[m] = 1
     else:
         predBirthTimesDict[m] = 0
-
-df_train["12"] = pd.to_datetime(df_train["12"], format="%Y/%m/%d %H:%M")
-df_train["15"] = pd.to_datetime(df_train["15"], format="%Y/%m/%d %H:%M")
-df_train["DayAfterBreed"] = df_train["15"] - df_train["12"]
-
-tmpArray = []
-for x in df_train["DayAfterBreed"]:
-    tmpArray.append(x.days)
-
-df_train["DayAfterBreed"] = pd.Series(tmpArray)
-
-
+#%%
+for m in X_raw["2"]:
+    try:
+        predYersTypeDict[m] = d_YearsType.values.codes[m-2013]
+    except:
+        predYersTypeDict[m] = d_YearsType.values.codes[-1]
 
 #%%
-predBirthTimesDict
+X_raw["12"] = pd.to_datetime(X_raw["12"], format="%Y/%m/%d %H:%M")
+X_raw["15"] = pd.to_datetime(X_raw["15"], format="%Y/%m/%d %H:%M")
+X_raw["DayAfterBreed"] = X_raw["15"] - X_raw["12"]
+
+xrawTypeDayAfterBreed = pd.qcut(X_raw["DayAfterBreed"],10)
+xraw_typedayAfterBreed = xrawTypeDayAfterBreed.values.codes
+
 #%%
-predMilkDuraitonDict
+X_raw["DayAfterBreed"] = pd.Series(xraw_typedayAfterBreed).astype("int")
+X_raw["DayAfterBreed"].describe()
+
+#%%
+X_raw["YearsType"] = X_raw["2"].map(predYersTypeDict).astype("int")
+X_raw["YearsType"]
+
 #%%
 X_raw["MilkDuraiton"] = X_raw["10"].map(predMilkDuraitonDict).astype("int")
 #%%
