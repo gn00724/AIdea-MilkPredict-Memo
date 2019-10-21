@@ -18,14 +18,17 @@ df_birth = pd.read_csv("./乳牛/data/birth.csv", error_bad_lines = False)
 df_submit = pd.read_csv("./乳牛/data/submission.csv", error_bad_lines = False)
 
 targetYear = "2013"
-targetFarm = "FarmA/C0D390"
-df_years = pd.read_csv("./乳牛/data/" + targetFarm + "-" + targetYear + ".csv", error_bad_lines = False)
-
-
-
-
-
-
+targetFarmDict = {
+    "A":"FarmA/C0D390",
+    "B":"FarmB/C0G770",
+    "C":"FarmC/C0R510"}
+pdbyFarmyear = []
+#%%
+for key in targetFarmDict.keys():
+    _tmp = {}
+    for y in range(2012, 2019):
+        _tmp[y] = pd.read_csv("./乳牛/data/" + targetFarmDict[key] + "-" + str(y) + ".csv", error_bad_lines = False)
+    pdbyFarmyear.append(_tmp)
 
 #%%
 X = df_train
@@ -33,6 +36,37 @@ X_raw = df_report
 X["11"] = X["11"].dropna(axis=0)
 Y_raw = pd.DataFrame(df_train["11"])
 
+dyearsArray = X["2"].values
+dFarmArray = X["4"].values
+dMonthArray = X["3"].values
+dArrayTemperature = []
+LenofData = len(dFarmArray)
+bar = 0
+#%%
+
+for _t, dfram in enumerate(X["4"].values):
+    if (_t / LenofData) >= bar + 0.1:
+        print(_t / LenofData)
+    dArrayTemperature.append(
+        pdbyFarmyear[int(dfram)-1]\
+            [int(dyearsArray[_t])]\
+            ["Temperature"]\
+            [int(dMonthArray[_t])-1]
+        )
+
+  
+df_train["Temperature"] = pd.Series(dArrayTemperature)    
+
+#%%
+d_byTemperature = pd.Series(df_train.groupby(df_train["Temperature"])["11"].mean())
+sns.relplot(data=d_byTemperature)
+
+"""
+
+#%%
+
+#%%
+#%%
 #%%
 Y_raw.describe()
 #%%
@@ -274,7 +308,6 @@ df = pd.DataFrame({'ID': df_report['1'],'Actual': YR.flatten(), 'Predicted': b2_
 df.to_csv("submit_line.csv", index=False)
 
 #%%
-"""
 
 #%%
 sns.countplot(df_report["11"], hue=df_report["3"])
