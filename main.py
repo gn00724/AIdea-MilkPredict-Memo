@@ -5,6 +5,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
 from datetime import datetime as dt
+import matplotlib.pyplot as plt
 
 import warnings
 import pandas as pd
@@ -16,6 +17,7 @@ df_train = pd.read_csv("./乳牛/data/train.csv", error_bad_lines = False)
 df_report = pd.read_csv("./乳牛/data/report.csv", error_bad_lines = False)
 df_birth = pd.read_csv("./乳牛/data/birth.csv", error_bad_lines = False)
 df_submit = pd.read_csv("./乳牛/data/submission.csv", error_bad_lines = False)
+splitMonth = 5
 
 #%%
 d_framA = df_train[df_train.loc[:,"4"] == 1]
@@ -26,6 +28,54 @@ print(d_framA.count(),
     d_framB.count(),
     d_framC.count())
 
+#%%
+d_monthtype = []
+for m in df_train["3"]:
+    if m <= splitMonth:
+        d_monthtype.append(1)
+    elif m > splitMonth:
+        d_monthtype.append(2)
+    else:
+        None
+        
+df_train["MonthType"] = pd.Series(d_monthtype)
+
+#%%
+d_splitYears2type = []
+for m in df_train["2"]:
+    if m == 2015 or m == 2016:
+        d_splitYears2type.append(1)      
+    else:
+        d_splitYears2type.append(2)
+        
+df_train["splitYears2type"] = pd.Series(d_splitYears2type)
+#%%
+d_year2013 = df_train[df_train.loc[:,"2"] == 2013]
+d_year2014 = df_train[df_train.loc[:,"2"] == 2014]
+d_year2015 = df_train[df_train.loc[:,"2"] == 2015]
+d_year2016 = df_train[df_train.loc[:,"2"] == 2016]
+d_year2017 = df_train[df_train.loc[:,"2"] == 2017]
+d_year2018 = df_train[df_train.loc[:,"2"] == 2018]
+
+yearFact_2013 = pd.Series(d_year2013.groupby(d_year2013["MonthType"])["11"].mean().to_dict()).values
+yearFact_2014 = pd.Series(d_year2014.groupby(d_year2014["MonthType"])["11"].mean().to_dict()).values
+yearFact_2015 = pd.Series(d_year2015.groupby(d_year2015["MonthType"])["11"].mean().to_dict()).values
+yearFact_2016 = pd.Series(d_year2016.groupby(d_year2016["MonthType"])["11"].mean().to_dict()).values
+yearFact_2017 = pd.Series(d_year2017.groupby(d_year2017["MonthType"])["11"].mean().to_dict()).values
+yearFact_2018 = pd.Series(d_year2018.groupby(d_year2018["MonthType"])["11"].mean().to_dict()).values
+
+months = [1,2]
+
+#%%
+plt.figure(figsize=(15,10),dpi=100,linewidth = 2)
+plt.plot(months,yearFact_2013,'s-', label="2013")
+plt.plot(months,yearFact_2014,'s-', label="2014")
+plt.plot(months,yearFact_2015,'s-', label="2015")
+plt.plot(months,yearFact_2016,'s-', label="2016")
+plt.plot(months,yearFact_2017,'s-', label="2017")
+plt.plot(months,yearFact_2018,'s-', label="2018")
+plt.legend(loc = "best", fontsize=20)
+plt.show()
 #%%
 #init
 X = df_train
@@ -54,6 +104,9 @@ df_train["YearsType"] = df_train["2"].map(d_yearsTypeDict).astype("int")
 df_train["YearsType"].describe()
 df_byYears = pd.Series(df_train.groupby(df_train["YearsType"])["11"].mean())
 sns.relplot(data=df_byYears)
+
+
+
 #%%
 #農場影響
 FarmFact = pd.Series(df_train.groupby(df_train["4"])["11"].mean())
@@ -95,14 +148,27 @@ for _t, dfram in enumerate(X["4"].values):
             [int(dyearsArray[_t])]\
             ["RH"]\
             [int(dMonthArray[_t])-1]
-    
     dArrayTemperature.append(_temp)
 
 #%%
 df_train["RH"] = pd.Series(dArrayTemperature)   
 df = pd.Series(df_train.groupby(df_train["RH"])["11"].mean())
 sns.relplot(data=df)
-df
+#%%
+dd = []
+d_RHType = pd.qcut(df,6)
+
+dd2 = {}
+for _t, key in enumerate(d_RHType.to_dict().keys()):
+    dd2[key] = d_RHType.values.codes[_t]
+
+for x in df_train["RH"]:
+    dd.append(dd2[x])
+
+df_train["RH_by7"] = pd.Series(dd)
+dRH = pd.Series(df_train.groupby(df_train["RH_by7"])["11"].mean())
+sns.relplot(data=dRH)
+
 #%%
 #d_byTemperature = pd.Series(df_train.groupby(df_train["Temperature"])["11"].mean())
 #sns.relplot(data=d_byTemperature)
@@ -140,7 +206,7 @@ sns.relplot(data=df)
 
 #%%
 #預測與建模
-b1 = ["YearsType", "4", "3", "DayAfterBreed"]
+b1 = ["2", "4", "MonthType", "DayAfterBreed", "RH_by7"]
 b1_Model = RandomForestClassifier(random_state=10, n_estimators=250, min_samples_split=20, oob_score=True)
 b1_Model.fit(X[b1],Y.astype('int'))
 #%%
@@ -150,6 +216,27 @@ print(b1_Model.oob_score_)
 X_pred["2"]
 #%%
 #預測
+dpred_monthtype = []
+for m in X_pred["3"]:
+    if m <= splitMonth:
+        dpred_monthtype.append(1)
+    elif m > splitMonth:
+        dpred_monthtype.append(2)
+    else:
+        None
+        
+X_pred["MonthType"] = pd.Series(dpred_monthtype)
+#%%
+d_predsplitYears2type = []
+for m in X_pred["2"]:
+    if m == 2015 or m == 2016:
+        d_predsplitYears2type.append(1)      
+    else:
+        d_predsplitYears2type.append(2)
+        
+X_pred["splitYears2type"] = pd.Series(d_predsplitYears2type)
+X_pred["splitYears2type"]
+#%%
 YearsFact = pd.Series(X_pred.groupby(X_pred["2"])["11"].mean())
 d_YearsType = pd.qcut(YearsFact,4)
 d_predYearTypeDict = {}
@@ -163,6 +250,7 @@ X_pred["YearsType"].describe()
 #%%
 bar = 0
 dpredArrayTemperature = []
+
 
 #%%
 dPredyearsArray = X_pred["2"].values

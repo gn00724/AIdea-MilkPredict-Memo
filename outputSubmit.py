@@ -2,14 +2,19 @@
 from toolBox import basicTool as bt
 import pandas as pd
 import datetime as dt
+import sys
 
 df_pred = pd.read_csv("./submit.csv", error_bad_lines = False)
 #%%
 now = str(int(dt.datetime.now().timestamp()))
 
 submit = bt.csvtoArray("./乳牛/data/submission.csv")
-lo_pred = "./submit.csv"
-ourput = "./output.csv"
+lo_pred = sys.argv[1]
+try:
+   ourput = sys.argv[2]
+except:
+   ourput = "./output" + now
+
 submit
 sumArray = []
 titleArray = []
@@ -26,4 +31,5 @@ for _t, key in enumerate(submit):
       _tmp = _t/len(submit)
    bt.ArraytoCsvmaker("./", "output" + now, titleArray, sumArray)
 
-#%%
+
+     
